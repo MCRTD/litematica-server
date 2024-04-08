@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Response, UploadFile
 from fastapi.responses import FileResponse
+from typing import Union,List
 from t3dlitematica import LitimaticaToObj, Resolve, convert_texturepack
 import os
 
@@ -26,14 +27,22 @@ def ping():
 
 
 @app.post("/litematica/upload")
-def upload_litematica(file: UploadFile, texturepack: str) -> Response:
+def upload_litematica(file: UploadFile, texturepack: Union[str,List[str]]) -> Response:
     if not file.filename.endswith(".litematica"):
         return {"error": "File must be a .litematica file"}
     with open(os.path.join("temp", file.filename), "wb") as f:
         f.write(file.file.read())
+    if isinstance(texturepack, list):
+        for tp in texturepack:
+            if not os.path.exists(os.path.join("textures", tp)):
+                raise HTTPException(status_code=500, detail=f"{tp} Texturepack not found")
+        #TODO: t3dlitematica suppoet multiple texturepacks
+        texturepath = ...(texturepack)
+    else:
+        texturepath = os.path.join("textures", texturepack)
     filename = LitimaticaToObj(
         Resolve(os.path.join("temp", file.filename)),
-        os.path.join("textures", texturepack),
+        texturepath,
         "/obj",
     )
     os.remove(os.path.join("temp", file.filename))
