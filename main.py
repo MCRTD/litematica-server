@@ -1,7 +1,8 @@
 from fastapi import FastAPI, HTTPException, Response, UploadFile
 from fastapi.responses import FileResponse
-from typing import Union,List
-from t3dlitematica import LitimaticaToObj, Resolve, convert_texturepack
+from fastapi.responses import HTMLResponse
+from typing import Union, List
+from t3dlitematica import LitimaticaToObj, Resolve, convert_texturepack, multiload
 import os
 
 app = FastAPI()
@@ -16,9 +17,15 @@ def check():
         os.mkdir("temp")
 
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
 def read_root():
-    return {"message": "Litematica API is online"}
+    html = open("./public/index.html", "r").read()
+    return html
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return FileResponse("./static/favicon.ico")
 
 
 @app.get("/ping")
@@ -27,7 +34,7 @@ def ping():
 
 
 @app.post("/litematica/upload")
-def upload_litematica(file: UploadFile, texturepack: Union[str,List[str]]) -> Response:
+def upload_litematica(file: UploadFile, texturepack: Union[str, List[str]]) -> Response:
     if not file.filename.endswith(".litematica"):
         return {"error": "File must be a .litematica file"}
     with open(os.path.join("temp", file.filename), "wb") as f:
@@ -35,16 +42,22 @@ def upload_litematica(file: UploadFile, texturepack: Union[str,List[str]]) -> Re
     if isinstance(texturepack, list):
         for tp in texturepack:
             if not os.path.exists(os.path.join("textures", tp)):
-                raise HTTPException(status_code=500, detail=f"{tp} Texturepack not found")
-        #TODO: t3dlitematica suppoet multiple texturepacks
-        texturepath = ...(texturepack)
+                raise HTTPException(
+                    status_code=500, detail=f"{tp} Texturepack not found"
+                )
+        with multiload(texturepack) as texturepath:
+            filename = LitimaticaToObj(
+                Resolve(os.path.join("temp", file.filename)),
+                texturepath,
+                "/obj",
+            )
     else:
         texturepath = os.path.join("textures", texturepack)
-    filename = LitimaticaToObj(
-        Resolve(os.path.join("temp", file.filename)),
-        texturepath,
-        "/obj",
-    )
+        filename = LitimaticaToObj(
+            Resolve(os.path.join("temp", file.filename)),
+            texturepath,
+            "/obj",
+        )
     os.remove(os.path.join("temp", file.filename))
     return FileResponse(path=os.path.join("obj", filename), filename=filename)
 
