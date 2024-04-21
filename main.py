@@ -35,8 +35,8 @@ def ping():
 
 @app.post("/litematica/upload")
 def upload_litematica(file: UploadFile, texturepack: Union[str, List[str]]) -> Response:
-    if not file.filename.endswith(".litematica"):
-        return {"error": "File must be a .litematica file"}
+    if not file.filename.endswith(".litematic"):
+        return {"error": "File must be a .litematic file"}
     with open(os.path.join("temp", file.filename), "wb") as f:
         f.write(file.file.read())
     if isinstance(texturepack, list):
@@ -64,8 +64,8 @@ def upload_litematica(file: UploadFile, texturepack: Union[str, List[str]]) -> R
 
 @app.post("/litematica/resolve")
 def resolve_litematica(file: UploadFile):
-    if not file.filename.endswith(".litematica"):
-        return {"error": "File must be a .litematica file"}
+    if not file.filename.endswith(".litematic"):
+        return {"error": "File must be a .litematic file"}
     with open(os.path.join("temp", file.filename), "wb") as f:
         f.write(file.file.read())
     data = Resolve(os.path.join("temp", file.filename))
