@@ -1,12 +1,13 @@
 from fastapi import FastAPI, HTTPException, Response, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from typing import Union, List
 from t3dlitematica import LitimaticaToObj, Resolve, convert_texturepack, multiload
 import os
 
 app = FastAPI()
-
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 def check():
     if not os.path.exists("textures"):
@@ -21,11 +22,6 @@ def check():
 def read_root():
     html = open("./public/index.html", "r").read()
     return html
-
-
-@app.get("/favicon.ico", include_in_schema=False)
-async def favicon():
-    return FileResponse("./static/favicon.ico")
 
 
 @app.get("/ping")
