@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from typing import Union, List
 from t3dlitematica import LitimaticaToObj, Resolve, convert_texturepack, multiload
 import os
+import requests
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -30,9 +31,19 @@ def ping():
 
 
 @app.post("/litematica/upload")
-def upload_litematica(file: UploadFile, texturepack: Union[str, List[str]]) -> Response:
-    if not file.filename.endswith(".litematic"):
-        return {"error": "File must be a .litematic file"}
+def upload_litematica(file: UploadFile | str, texturepack: Union[str, List[str]]) -> Response:
+    if isinstance(file, str):
+        try:
+            if file.split("/")[-1] != "litematic":
+                return {"error": "File must be a .litematic file"}
+            r = requests.get(file)
+        except (requests.exceptions.HTTPError, requests.exceptions.ConnectionError):
+            return {"error": "Invalid URL"}
+        with open(os.path.join("temp", file.split("/")[-1]), "wb") as f:
+            f.write(r.content)
+    else:
+        if not file.filename.endswith(".litematic"):
+            return {"error": "File must be a .litematic file"}
     with open(os.path.join("temp", file.filename), "wb") as f:
         f.write(file.file.read())
     if isinstance(texturepack, list):
