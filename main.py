@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from typing import Union, List
 from t3dlitematica import LitimaticaToObj, Resolve, convert_texturepack, multiload
 import os
+import re
 import requests
 
 app = FastAPI()
@@ -34,18 +35,21 @@ def ping():
 def upload_litematica(file: UploadFile | str, texturepack: Union[str, List[str]]) -> Response:
     if isinstance(file, str):
         try:
-            if file.split("/")[-1] != "litematic":
-                return {"error": "File must be a .litematic file"}
-            r = requests.get(file)
+            match = re.match(r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()!@:%_\+.~#?&\/\/=]*)\/([\w\-\.%]+\.litematic)\??.*", file)
+            if not match:
+                return {"error": "Invalid URL"}
+            infilename = match.group(3)
+            r = requests.get(file, stream=True)
         except (requests.exceptions.HTTPError, requests.exceptions.ConnectionError):
             return {"error": "Invalid URL"}
-        with open(os.path.join("temp", file.split("/")[-1]), "wb") as f:
+        with open(os.path.join("temp", infilename), "wb") as f:
             f.write(r.content)
     else:
         if not file.filename.endswith(".litematic"):
             return {"error": "File must be a .litematic file"}
-    with open(os.path.join("temp", file.filename), "wb") as f:
-        f.write(file.file.read())
+        infilename = file.filename
+        with open(os.path.join("temp", infilename), "wb") as f:
+            f.write(file.file.read())
     if isinstance(texturepack, list):
         for tp in texturepack:
             if not os.path.exists(os.path.join("textures", tp)):
@@ -54,30 +58,45 @@ def upload_litematica(file: UploadFile | str, texturepack: Union[str, List[str]]
                 )
         with multiload(texturepack) as texturepath:
             filename = LitimaticaToObj(
-                Resolve(os.path.join("temp", file.filename)),
+                Resolve(os.path.join("temp", infilename)),
                 texturepath,
-                "/obj",
+                os.path.join(os.getcwd(), "obj"),
             )
     else:
+        print(Resolve(os.path.join("temp", infilename)))
         texturepath = os.path.join("textures", texturepack)
         filename = LitimaticaToObj(
-            Resolve(os.path.join("temp", file.filename)),
+            Resolve(os.path.join("temp", infilename)),
             texturepath,
-            "/obj",
+            os.path.join(os.getcwd(), "obj"),
         )
-    os.remove(os.path.join("temp", file.filename))
-    return FileResponse(path=os.path.join("obj", filename), filename=filename)
+    os.remove(os.path.join("temp", infilename))
+    return FileResponse(path=os.path.join("obj", str(filename)), filename=str(filename))
 
 
 @app.post("/litematica/resolve")
-def resolve_litematica(file: UploadFile):
-    if not file.filename.endswith(".litematic"):
-        return {"error": "File must be a .litematic file"}
-    with open(os.path.join("temp", file.filename), "wb") as f:
-        f.write(file.file.read())
-    data = Resolve(os.path.join("temp", file.filename))
-    os.remove(os.path.join("temp", file.filename))
+def resolve_litematica(file: UploadFile | str):
+    if isinstance(file, str):
+        try:
+            match = re.match(r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()!@:%_\+.~#?&\/\/=]*)\/([\w\-\.%]+\.litematic)\??.*", file)
+            if not match:
+                return {"error": "Invalid URL"}
+            infilename = match.group(3)
+            r = requests.get(file, stream=True)
+        except (requests.exceptions.HTTPError, requests.exceptions.ConnectionError):
+            return {"error": "Invalid URL"}
+        with open(os.path.join("temp", infilename), "wb") as f:
+            f.write(r.content)
+    else:
+        if not file.filename.endswith(".litematic"):
+            return {"error": "File must be a .litematic file"}
+        infilename = file.filename
+        with open(os.path.join("temp", infilename), "wb") as f:
+            f.write(file.file.read())
+    data = Resolve(os.path.join("temp", infilename))
+    os.remove(os.path.join("temp", infilename))
     return data
+
 
 
 @app.post("/texturepack/upload")
