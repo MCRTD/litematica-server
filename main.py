@@ -4,12 +4,10 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from typing import Union, List
 from t3dlitematica import LitimaticaToObj, Resolve, convert_texturepack, multiload
+from contextlib import asynccontextmanager
 import os
 import re
 import requests
-
-app = FastAPI()
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
 def check():
     if not os.path.exists("textures"):
@@ -18,6 +16,17 @@ def check():
         os.mkdir("obj")
     if not os.path.exists("temp"):
         os.mkdir("temp")
+
+@asynccontextmanager
+async def startup(app: FastAPI):
+    check()
+    yield
+    print("Shutting down")
+
+app = FastAPI(lifespan=startup)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
 
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
@@ -121,6 +130,7 @@ def list_texturepack():
     if not texturepacklist:
         raise HTTPException(status_code=500, detail="No texturepacks found")
     return {"texturepacks": texturepacklist}
+
 
 
 if __name__ == "__main__":
