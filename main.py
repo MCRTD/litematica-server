@@ -40,6 +40,14 @@ def ping():
     return {"ping": "pong"}
 
 
+@app.get("/status")
+def status():
+    data = {
+        "litematicas": len(os.listdir("obj")),
+        "texturepacks": len(os.listdir("textures")),
+    }
+    return data
+
 @app.post("/litematica/upload")
 def upload_litematica(file: UploadFile | str, texturepack: Union[str, List[str]]) -> Response:
     if isinstance(file, str):
