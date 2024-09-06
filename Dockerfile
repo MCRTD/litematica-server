@@ -5,4 +5,5 @@ COPY static /app/static
 COPY public /app/public
 COPY main.py /app/main.py
 WORKDIR /app
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# ENV PORT 8080
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT}"]
