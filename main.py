@@ -54,16 +54,16 @@ def upload_litematica(file: UploadFile | str, texturepack: Union[str, List[str]]
         try:
             match = re.match(r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()!@:%_\+.~#?&\/\/=]*)\/([\w\-\.%]+\.litematic)\??.*", file)
             if not match:
-                return {"error": "Invalid URL"}
+                raise HTTPException(status_code=400, detail="Invalid URL")
             infilename = match.group(3)
             r = requests.get(file, stream=True)
         except (requests.exceptions.HTTPError, requests.exceptions.ConnectionError):
-            return {"error": "Invalid URL"}
+            raise HTTPException(status_code=400, detail="Invalid URL")
         with open(os.path.join("temp", infilename), "wb") as f:
             f.write(r.content)
     else:
         if not file.filename.endswith(".litematic"):
-            return {"error": "File must be a .litematic file"}
+            raise HTTPException(status_code=400, detail="File must be a .litematic file")
         infilename = file.filename
         with open(os.path.join("temp", infilename), "wb") as f:
             f.write(file.file.read())
@@ -71,7 +71,7 @@ def upload_litematica(file: UploadFile | str, texturepack: Union[str, List[str]]
         for tp in texturepack:
             if not os.path.exists(os.path.join("textures", tp)):
                 raise HTTPException(
-                    status_code=500, detail=f"{tp} Texturepack not found"
+                    status_code=404, detail=f"{tp} Texturepack not found"
                 )
         with multiload(texturepack) as texturepath:
             filename = LitimaticaToObj(
@@ -119,9 +119,9 @@ def resolve_litematica(file: UploadFile | str):
 @app.post("/texturepack/upload")
 def upload_texturepack(file: UploadFile, texturepackname: str):
     if not file.filename.endswith(".zip"):
-        raise HTTPException(status_code=500, detail="File must be a .zip file")
+        raise HTTPException(status_code=400, detail="File must be a .zip file")
     if os.path.exists(os.path.join("textures", texturepackname)):
-        raise HTTPException(status_code=500, detail="Texturepack already exists")
+        raise HTTPException(status_code=409, detail="Texturepack already exists")
     with open(os.path.join(os.getcwd(), "temp", file.filename), "wb") as f:
         f.write(file.file.read())
     os.mkdir(os.path.join("textures", texturepackname))
@@ -136,7 +136,7 @@ def upload_texturepack(file: UploadFile, texturepackname: str):
 def list_texturepack():
     texturepacklist = os.listdir("textures")
     if not texturepacklist:
-        raise HTTPException(status_code=500, detail="No texturepacks found")
+        raise HTTPException(status_code=404, detail="No texturepacks found")
     return {"texturepacks": texturepacklist}
 
 
